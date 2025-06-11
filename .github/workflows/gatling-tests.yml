@@ -26,7 +26,7 @@ jobs:
             command: ./mvnw gatling:test
             type: java
           - name: Scala
-            directory: scala
+            directory: scala/sbt
             command: sbt gatling:test
             type: scala
           - name: Kotlin

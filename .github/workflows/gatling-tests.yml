@@ -16,54 +16,75 @@ jobs:
           - name: JavaScript
             directory: javascript
             command: npx gatling run --simulation basicSimulation
+            type: node
           - name: TypeScript
             directory: typescript
             command: npx gatling run --typescript --simulation basicSimulation
+            type: node
           - name: Java
             directory: java/maven
             command: ./mvnw gatling:test
+            type: java
           - name: Scala
             directory: scala
             command: sbt gatling:test
+            type: scala
           - name: Kotlin
             directory: kotlin/gradle
             command: ./gradlew gatlingRun
+            type: kotlin
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Node.js
+        if: matrix.type == 'node'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
       - name: Set up Java
+        if: matrix.type == 'java' || matrix.type == 'scala' || matrix.type == 'kotlin'
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
       - name: Set up Scala
+        if: matrix.type == 'scala'
         uses: olafurpg/setup-scala@v13
         with:
           java-version: '17'
 
       - name: Set up Kotlin
+        if: matrix.type == 'kotlin'
         uses: fwilhe2/setup-kotlin@v1
         with:
           version: '1.9.22'
 
-      - name: Install dependencies
+      - name: Install Node.js dependencies
+        if: matrix.type == 'node'
         run: |
           cd ${{ matrix.directory }}
-          if [ -f "package.json" ]; then
-            npm install
-          elif [ -f "build.gradle" ]; then
-            ./gradlew dependencies
-          elif [ -f "build.sbt" ]; then
-            sbt update
-          fi
+          npm install
+
+      - name: Install Java dependencies
+        if: matrix.type == 'java'
+        run: |
+          cd ${{ matrix.directory }}
+          ./mvnw dependency:resolve
+
+      - name: Install Scala dependencies
+        if: matrix.type == 'scala'
+        run: |
+          cd ${{ matrix.directory }}
+          sbt update
+
+      - name: Install Kotlin dependencies
+        if: matrix.type == 'kotlin'
+        run: |
+          cd ${{ matrix.directory }}
+          ./gradlew dependencies
 
       - name: Run Gatling tests
         run: |

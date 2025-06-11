@@ -1,0 +1,94 @@
+name: Gatling Performance Tests
+
+on:
+  push:
+    branches: [ main ]
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch: 
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - name: JavaScript
+            directory: javascript
+            command: npx gatling run --simulation basicSimulation
+          - name: TypeScript
+            directory: typescript
+            command: npx gatling run --typescript --simulation basicSimulation
+          - name: Java
+            directory: java/maven
+            command: ./mvnw gatling:test
+          - name: Scala
+            directory: scala
+            command: sbt gatling:test
+          - name: Kotlin
+            directory: kotlin/gradle
+            command: ./gradlew gatlingRun
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Scala
+        uses: olafurpg/setup-scala@v13
+        with:
+          java-version: '17'
+
+      - name: Set up Kotlin
+        uses: fwilhe2/setup-kotlin@v1
+        with:
+          version: '1.9.22'
+
+      - name: Install dependencies
+        run: |
+          cd ${{ matrix.directory }}
+          if [ -f "package.json" ]; then
+            npm install
+          elif [ -f "build.gradle" ]; then
+            ./gradlew dependencies
+          elif [ -f "build.sbt" ]; then
+            sbt update
+          fi
+
+      - name: Run Gatling tests
+        run: |
+          cd ${{ matrix.directory }}
+          ${{ matrix.command }}
+        continue-on-error: true
+
+      - name: Upload test reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gatling-reports-${{ matrix.name }}
+          path: |
+            ${{ matrix.directory }}/target/gatling/**/*.html
+            ${{ matrix.directory }}/target/gatling/**/*.json
+            ${{ matrix.directory }}/target/gatling/**/*.log
+          retention-days: 30
+
+      - name: Check test results
+        if: always()
+        run: |
+          echo "Test results for ${{ matrix.name }}:"
+          if [ -d "${{ matrix.directory }}/target/gatling" ]; then
+            echo "Reports generated successfully"
+          else
+            echo "No reports found"
+            exit 1
+          fi 

@@ -31,7 +31,7 @@ jobs:
             type: scala
           - name: Kotlin
             directory: kotlin/gradle
-            command: ./gradlew gatlingRun
+            command: ./gradlew gatlingRun --info
             type: kotlin
 
     steps:
@@ -84,6 +84,8 @@ jobs:
         if: matrix.type == 'kotlin'
         run: |
           cd ${{ matrix.directory }}
+          chmod +x ./gradlew
+          ./gradlew --version
           ./gradlew dependencies
 
       - name: Run Gatling tests
@@ -101,13 +103,16 @@ jobs:
             ${{ matrix.directory }}/target/gatling/**/*.html
             ${{ matrix.directory }}/target/gatling/**/*.json
             ${{ matrix.directory }}/target/gatling/**/*.log
+            ${{ matrix.directory }}/build/reports/gatling/**/*.html
+            ${{ matrix.directory }}/build/reports/gatling/**/*.json
+            ${{ matrix.directory }}/build/reports/gatling/**/*.log
           retention-days: 30
 
       - name: Check test results
         if: always()
         run: |
           echo "Test results for ${{ matrix.name }}:"
-          if [ -d "${{ matrix.directory }}/target/gatling" ]; then
+          if [ -d "${{ matrix.directory }}/target/gatling" ] || [ -d "${{ matrix.directory }}/build/reports/gatling" ]; then
             echo "Reports generated successfully"
           else
             echo "No reports found"
